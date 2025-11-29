@@ -1,0 +1,21 @@
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+ignoreip = 127.0.0.1/8 10.54.10.0/24 10.54.20.0/24 10.54.30.0/24 100.64.0.0/10
+
+[sshd]
+enabled = true
+port = ssh
+logpath = %(sshd_log)s
+maxretry = 3
+bantime = 24h
+findtime = 15m
+
+[sshd-ddos]
+enabled = true
+port = ssh
+logpath = %(sshd_log)s
+maxretry = 6
+findtime = 60s
+bantime = 10m
