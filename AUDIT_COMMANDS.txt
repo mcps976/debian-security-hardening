@@ -1,0 +1,338 @@
+# Debian Security Audit Commands
+# Run these commands to perform a complete security audit
+
+# ============================================
+# SYSTEM INFORMATION
+# ============================================
+
+# System information
+uname -a
+
+# Debian version
+cat /etc/debian_version
+
+# System uptime
+uptime
+
+# Disk space
+df -h
+
+# Memory usage
+free -h
+
+# ============================================
+# SECURITY UPDATES
+# ============================================
+
+# Check for available updates
+sudo apt update
+sudo apt list --upgradable
+
+# Check for security updates specifically
+sudo apt list --upgradable 2>/dev/null | grep -i security
+
+# ============================================
+# SSH SECURITY
+# ============================================
+
+# SSH service status
+sudo systemctl status ssh
+
+# Check SSH configuration
+sudo sshd -t
+
+# View SSH hardening config
+cat /etc/ssh/sshd_config.d/99-yubikey-hardening.conf
+
+# Recent SSH login attempts
+sudo journalctl -u ssh -n 50 --no-pager
+
+# Last logins
+last -n 20
+
+# Failed login attempts
+sudo lastb -n 20
+
+# ============================================
+# FAIL2BAN STATUS
+# ============================================
+
+# fail2ban service status
+sudo systemctl status fail2ban
+
+# Overall fail2ban status
+sudo fail2ban-client status
+
+# SSH jail status
+sudo fail2ban-client status sshd
+
+# Currently banned IPs
+sudo fail2ban-client status sshd | grep "Banned IP"
+
+# fail2ban logs
+sudo tail -50 /var/log/fail2ban.log
+
+# ============================================
+# AIDE FILE INTEGRITY
+# ============================================
+
+# Check AIDE database exists
+ls -lh /var/lib/aide/aide.db
+
+# Run AIDE check
+sudo aide --check
+
+# AIDE logs
+ls -la /var/log/aide/
+
+# View most recent AIDE log
+sudo cat $(ls -t /var/log/aide/*.log 2>/dev/null | head -1)
+
+# ============================================
+# RKHUNTER ROOTKIT DETECTION
+# ============================================
+
+# Update rkhunter
+sudo rkhunter --update
+
+# Run rkhunter scan
+sudo rkhunter --check --skip-keypress
+
+# View rkhunter log
+sudo cat /var/log/rkhunter.log | tail -100
+
+# ============================================
+# APPARMOR STATUS
+# ============================================
+
+# AppArmor status
+sudo aa-status
+
+# AppArmor profiles in enforce mode
+sudo aa-status | grep "profiles are in enforce mode"
+
+# AppArmor denials in logs
+sudo journalctl -xe | grep -i apparmor | tail -20
+
+# ============================================
+# KERNEL SECURITY PARAMETERS
+# ============================================
+
+# Check TCP SYN cookies
+sysctl net.ipv4.tcp_syncookies
+
+# Check ASLR
+sysctl kernel.randomize_va_space
+
+# Check IP forwarding
+sysctl net.ipv4.ip_forward
+
+# View all security parameters
+sysctl -a | grep -E "tcp_syncookies|randomize_va_space|ip_forward|accept_redirects|log_martians"
+
+# ============================================
+# CORE DUMPS STATUS
+# ============================================
+
+# Check core dump limits
+ulimit -c
+
+# Check systemd coredump config
+cat /etc/systemd/coredump.conf.d/disable.conf
+
+# Check sysctl core pattern
+sysctl kernel.core_pattern
+
+# ============================================
+# FIREWALL STATUS (if applicable)
+# ============================================
+
+# Check for UFW
+sudo ufw status verbose 2>/dev/null || echo "UFW not installed (using OPNsense)"
+
+# Check iptables rules
+sudo iptables -L -n -v
+
+# ============================================
+# LISTENING PORTS
+# ============================================
+
+# All listening TCP ports
+sudo ss -tlnp
+
+# All listening UDP ports
+sudo ss -ulnp
+
+# Established connections
+sudo ss -tnp | grep ESTAB
+
+# ============================================
+# RUNNING SERVICES
+# ============================================
+
+# All running services
+systemctl list-units --type=service --state=running
+
+# Security-related services
+systemctl status fail2ban ssh unattended-upgrades --no-pager
+
+# ============================================
+# USER ACCOUNTS
+# ============================================
+
+# Users with login shells
+cat /etc/passwd | grep -v "nologin\|false" | cut -d: -f1
+
+# Users with UID 0 (should only be root)
+awk -F: '$3 == 0 {print $1}' /etc/passwd
+
+# Check for empty passwords
+sudo awk -F: '($2 == "") {print $1}' /etc/shadow
+
+# ============================================
+# SUDO CONFIGURATION
+# ============================================
+
+# Users/groups with sudo access
+sudo grep -E "^[^#]" /etc/sudoers
+sudo grep -E "^[^#]" /etc/sudoers.d/* 2>/dev/null
+
+# ============================================
+# SUID/SGID FILES
+# ============================================
+
+# Find SUID files
+sudo find / -perm -4000 -type f 2>/dev/null | head -20
+
+# Find SGID files
+sudo find / -perm -2000 -type f 2>/dev/null | head -20
+
+# ============================================
+# WORLD-WRITABLE FILES
+# ============================================
+
+# World-writable files in /etc (security risk)
+sudo find /etc -type f -perm -002 2>/dev/null
+
+# ============================================
+# PACKAGE SECURITY
+# ============================================
+
+# Check package integrity
+sudo debsums -c 2>&1 | head -20
+
+# List manually installed packages
+apt-mark showmanual | head -20
+
+# ============================================
+# UNATTENDED UPGRADES
+# ============================================
+
+# Unattended-upgrades status
+sudo systemctl status unattended-upgrades
+
+# Check configuration
+cat /etc/apt/apt.conf.d/50unattended-upgrades | grep -v "^//" | head -20
+
+# ============================================
+# CRON JOBS
+# ============================================
+
+# System cron jobs
+ls -la /etc/cron.d/
+ls -la /etc/cron.daily/
+ls -la /etc/cron.weekly/
+
+# User cron jobs
+crontab -l 2>/dev/null || echo "No user cron jobs"
+
+# ============================================
+# NETWORK SECURITY
+# ============================================
+
+# Active network connections
+sudo netstat -tuanp | grep ESTABLISHED
+
+# ARP table
+arp -a
+
+# Routing table
+ip route
+
+# ============================================
+# VPN STATUS (if applicable)
+# ============================================
+
+# Tailscale status
+tailscale status 2>/dev/null || echo "Tailscale not running"
+
+# Mullvad status
+mullvad status 2>/dev/null || echo "Mullvad not installed"
+
+# ============================================
+# PROCESS SECURITY
+# ============================================
+
+# Processes running as root
+ps aux | grep "^root" | head -20
+
+# Unusual processes
+ps aux | grep -v "\[" | awk '{print $11}' | sort | uniq -c | sort -rn | head -20
+
+# ============================================
+# LOG ANALYSIS
+# ============================================
+
+# Recent authentication failures
+sudo grep -i "failed" /var/log/auth.log | tail -20
+
+# Recent sudo usage
+sudo grep "sudo:" /var/log/auth.log | tail -20
+
+# System errors
+sudo journalctl -p err -n 50 --no-pager
+
+# ============================================
+# CUSTOM SCRIPTS
+# ============================================
+
+# Run health check
+~/bin/health_check.sh
+
+# Run security audit
+~/bin/security_audit.sh
+
+# ============================================
+# ALIASES (Run these if configured)
+# ============================================
+
+# health-check
+# security-audit
+# sys-update
+# scan-rootkit
+# check-aide
+# check-fail2ban
+# check-apparmor
+# view-bans
+
+# ============================================
+# EXPORT RESULTS
+# ============================================
+
+# Create audit report directory
+mkdir -p ~/security-audit-reports/$(date +%Y%m%d)
+
+# Save system info
+uname -a > ~/security-audit-reports/$(date +%Y%m%d)/system-info.txt
+cat /etc/debian_version >> ~/security-audit-reports/$(date +%Y%m%d)/system-info.txt
+uptime >> ~/security-audit-reports/$(date +%Y%m%d)/system-info.txt
+
+# Save security status
+sudo fail2ban-client status > ~/security-audit-reports/$(date +%Y%m%d)/fail2ban-status.txt
+sudo aa-status > ~/security-audit-reports/$(date +%Y%m%d)/apparmor-status.txt
+sudo systemctl status ssh fail2ban unattended-upgrades --no-pager > ~/security-audit-reports/$(date +%Y%m%d)/services-status.txt
+
+# Save kernel parameters
+sysctl -a | grep -E "tcp_syncookies|randomize_va_space|ip_forward" > ~/security-audit-reports/$(date +%Y%m%d)/kernel-security.txt
+
+echo "Audit report saved to ~/security-audit-reports/$(date +%Y%m%d)/"
