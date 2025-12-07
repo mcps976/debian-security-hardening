@@ -194,13 +194,24 @@ run_check "Sudo Usage" "sudo grep 'sudo:' /var/log/auth.log | tail -50" "39-sudo
 run_check "System Errors" "sudo journalctl -p err -n 100 --no-pager" "40-system-errors.txt"
 
 # ============================================
+# APPLICATION CLEANUP
+# ============================================
+
+echo "=== Application Cleanup ===" | tee -a "$REPORT_DIR/00-summary.txt"
+
+run_check "Orphaned Packages" "sudo apt autoremove --dry-run" "45-orphaned-packages.txt"
+run_check "Old Config Files" "dpkg -l | grep '^rc'" "46-old-configs.txt"
+run_check "Large Old Files" "find ~/ -type f -size +100M -mtime +180 2>/dev/null | head -20" "47-large-old-files.txt"
+run_check "Package Cache Size" "du -sh /var/cache/apt/archives/" "48-package-cache.txt"
+
+# ============================================
 # VPN STATUS
 # ============================================
 
 echo "=== VPN Status ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "Tailscale" "tailscale status 2>&1" "41-tailscale.txt"
-run_check "Mullvad" "mullvad status 2>&1" "42-mullvad.txt"
+run_check "Tailscale" "tailscale status 2>&1" "49-tailscale.txt"
+run_check "Mullvad" "mullvad status 2>&1" "50-mullvad.txt"
 
 # ============================================
 # CUSTOM HEALTH CHECKS
@@ -209,11 +220,11 @@ run_check "Mullvad" "mullvad status 2>&1" "42-mullvad.txt"
 echo "=== Custom Health Checks ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
 if [ -f ~/bin/health_check.sh ]; then
-    run_check "Health Check Script" "~/bin/health_check.sh" "43-health-check.txt"
+    run_check "Health Check Script" "~/bin/health_check.sh" "51-health-check.txt"
 fi
 
 if [ -f ~/bin/security_audit.sh ]; then
-    run_check "Security Audit Script" "~/bin/security_audit.sh" "44-security-audit.txt"
+    run_check "Security Audit Script" "~/bin/security_audit.sh" "52-security-audit.txt"
 fi
 
 # ============================================
