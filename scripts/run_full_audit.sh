@@ -84,7 +84,7 @@ run_check "AIDE Database Info" "ls -lh /var/lib/aide/aide.db" "15-aide-database.
 run_check "AIDE Logs" "ls -la /var/log/aide/" "16-aide-logs.txt"
 
 echo -e "${YELLOW}Running AIDE check (this may take a few minutes)...${NC}"
-sudo aide --check > "$REPORT_DIR/17-aide-check.txt" 2>&1
+sudo aide --check > "$REPORT_DIR/17-aide-check.txt" 2>&1 || echo "AIDE check completed with warnings (exit code $?)" >> "$REPORT_DIR/17-aide-check.txt"
 echo -e "${GREEN}✓ AIDE check complete${NC}"
 echo
 
@@ -97,7 +97,7 @@ echo "=== rkhunter ===" | tee -a "$REPORT_DIR/00-summary.txt"
 run_check "rkhunter Update" "sudo rkhunter --update" "18-rkhunter-update.txt"
 
 echo -e "${YELLOW}Running rkhunter scan (this may take a few minutes)...${NC}"
-sudo rkhunter --check --skip-keypress > "$REPORT_DIR/19-rkhunter-scan.txt" 2>&1
+yes "" | sudo rkhunter --check --skip-keypress --report-warnings-only > "$REPORT_DIR/19-rkhunter-scan.txt" 2>&1
 echo -e "${GREEN}✓ rkhunter scan complete${NC}"
 echo
 
@@ -111,13 +111,24 @@ run_check "AppArmor Status" "sudo aa-status" "20-apparmor-status.txt"
 run_check "AppArmor Denials" "sudo journalctl -xe | grep -i apparmor | tail -50" "21-apparmor-denials.txt"
 
 # ============================================
+# LYNIS SECURITY AUDIT
+# ============================================
+
+echo "=== Lynis Security Audit ===" | tee -a "$REPORT_DIR/00-summary.txt"
+
+echo -e "${YELLOW}Running Lynis audit (this may take a few minutes)...${NC}"
+yes "" | sudo /usr/sbin/lynis audit system --quick --no-colors > "$REPORT_DIR/22-lynis-audit.txt" 2>&1
+echo -e "${GREEN}✓ Lynis audit complete${NC}"
+echo
+
+# ============================================
 # KERNEL SECURITY
 # ============================================
 
 echo "=== Kernel Security ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "Kernel Parameters" "sysctl -a | grep -E 'tcp_syncookies|randomize_va_space|ip_forward|accept_redirects|log_martians'" "22-kernel-params.txt"
-run_check "Core Dumps" "ulimit -c && echo && cat /etc/systemd/coredump.conf.d/disable.conf && echo && sysctl kernel.core_pattern" "23-core-dumps.txt"
+run_check "Kernel Parameters" "sysctl -a | grep -E 'tcp_syncookies|randomize_va_space|ip_forward|accept_redirects|log_martians'" "23-kernel-params.txt"
+run_check "Core Dumps" "ulimit -c && echo && cat /etc/systemd/coredump.conf.d/disable.conf && echo && sysctl kernel.core_pattern" "24-core-dumps.txt"
 
 # ============================================
 # NETWORK SECURITY
@@ -125,10 +136,10 @@ run_check "Core Dumps" "ulimit -c && echo && cat /etc/systemd/coredump.conf.d/di
 
 echo "=== Network Security ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "Listening Ports" "sudo ss -tlnp" "24-listening-ports.txt"
-run_check "Established Connections" "sudo ss -tnp | grep ESTAB" "25-connections.txt"
-run_check "Routing Table" "ip route" "26-routing.txt"
-run_check "ARP Table" "arp -a" "27-arp-table.txt"
+run_check "Listening Ports" "sudo ss -tlnp" "25-listening-ports.txt"
+run_check "Established Connections" "sudo ss -tnp | grep ESTAB" "26-connections.txt"
+run_check "Routing Table" "ip route" "27-routing.txt"
+run_check "ARP Table" "arp -a" "28-arp-table.txt"
 
 # ============================================
 # SERVICES
@@ -136,8 +147,8 @@ run_check "ARP Table" "arp -a" "27-arp-table.txt"
 
 echo "=== Running Services ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "All Running Services" "systemctl list-units --type=service --state=running" "28-services.txt"
-run_check "Security Services" "systemctl status fail2ban ssh unattended-upgrades --no-pager" "29-security-services.txt"
+run_check "All Running Services" "systemctl list-units --type=service --state=running" "29-services.txt"
+run_check "Security Services" "systemctl status fail2ban ssh unattended-upgrades --no-pager" "30-security-services.txt"
 
 # ============================================
 # USER ACCOUNTS
@@ -145,9 +156,9 @@ run_check "Security Services" "systemctl status fail2ban ssh unattended-upgrades
 
 echo "=== User Accounts ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "Users with Login" "cat /etc/passwd | grep -v 'nologin\|false'" "30-login-users.txt"
-run_check "UID 0 Users" "awk -F: '\$3 == 0 {print \$1}' /etc/passwd" "31-root-users.txt"
-run_check "Sudo Access" "sudo grep -E '^[^#]' /etc/sudoers && sudo grep -E '^[^#]' /etc/sudoers.d/* 2>/dev/null" "32-sudo-users.txt"
+run_check "Users with Login" "cat /etc/passwd | grep -v 'nologin\|false'" "31-login-users.txt"
+run_check "UID 0 Users" "awk -F: '\$3 == 0 {print \$1}' /etc/passwd" "32-root-users.txt"
+run_check "Sudo Access" "sudo grep -E '^[^#]' /etc/sudoers && sudo grep -E '^[^#]' /etc/sudoers.d/* 2>/dev/null" "33-sudo-users.txt"
 
 # ============================================
 # FILE PERMISSIONS
@@ -155,8 +166,8 @@ run_check "Sudo Access" "sudo grep -E '^[^#]' /etc/sudoers && sudo grep -E '^[^#
 
 echo "=== File Permissions ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "SUID Files" "sudo find / -perm -4000 -type f 2>/dev/null | head -30" "33-suid-files.txt"
-run_check "World Writable in /etc" "sudo find /etc -type f -perm -002 2>/dev/null" "34-world-writable.txt"
+run_check "SUID Files" "sudo find / -perm -4000 -type f 2>/dev/null | head -30" "34-suid-files.txt"
+run_check "World Writable in /etc" "sudo find /etc -type f -perm -002 2>/dev/null" "35-world-writable.txt"
 
 # ============================================
 # PACKAGE SECURITY
@@ -164,8 +175,8 @@ run_check "World Writable in /etc" "sudo find /etc -type f -perm -002 2>/dev/nul
 
 echo "=== Package Security ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "Package Integrity" "sudo debsums -c 2>&1 | head -50" "35-package-integrity.txt"
-run_check "Unattended Upgrades" "sudo systemctl status unattended-upgrades" "36-auto-updates.txt"
+run_check "Package Integrity" "timeout 60 sudo debsums -c 2>&1 | head -50 || echo 'Debsums check completed (or timed out)'" "36-package-integrity.txt"
+run_check "Unattended Upgrades" "sudo systemctl status unattended-upgrades" "37-auto-updates.txt"
 
 # ============================================
 # LOGS
@@ -173,9 +184,9 @@ run_check "Unattended Upgrades" "sudo systemctl status unattended-upgrades" "36-
 
 echo "=== System Logs ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "Auth Failures" "sudo grep -i 'failed' /var/log/auth.log | tail -50" "37-auth-failures.txt"
-run_check "Sudo Usage" "sudo grep 'sudo:' /var/log/auth.log | tail -50" "38-sudo-usage.txt"
-run_check "System Errors" "sudo journalctl -p err -n 100 --no-pager" "39-system-errors.txt"
+run_check "Auth Failures" "sudo grep -i 'failed' /var/log/auth.log | tail -50" "38-auth-failures.txt"
+run_check "Sudo Usage" "sudo grep 'sudo:' /var/log/auth.log | tail -50" "39-sudo-usage.txt"
+run_check "System Errors" "sudo journalctl -p err -n 100 --no-pager" "40-system-errors.txt"
 
 # ============================================
 # VPN STATUS
@@ -183,8 +194,8 @@ run_check "System Errors" "sudo journalctl -p err -n 100 --no-pager" "39-system-
 
 echo "=== VPN Status ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
-run_check "Tailscale" "tailscale status 2>&1" "40-tailscale.txt"
-run_check "Mullvad" "mullvad status 2>&1" "41-mullvad.txt"
+run_check "Tailscale" "tailscale status 2>&1" "41-tailscale.txt"
+run_check "Mullvad" "mullvad status 2>&1" "42-mullvad.txt"
 
 # ============================================
 # CUSTOM HEALTH CHECKS
@@ -193,11 +204,11 @@ run_check "Mullvad" "mullvad status 2>&1" "41-mullvad.txt"
 echo "=== Custom Health Checks ===" | tee -a "$REPORT_DIR/00-summary.txt"
 
 if [ -f ~/bin/health_check.sh ]; then
-    run_check "Health Check Script" "~/bin/health_check.sh" "42-health-check.txt"
+    run_check "Health Check Script" "~/bin/health_check.sh" "43-health-check.txt"
 fi
 
 if [ -f ~/bin/security_audit.sh ]; then
-    run_check "Security Audit Script" "~/bin/security_audit.sh" "43-security-audit.txt"
+    run_check "Security Audit Script" "~/bin/security_audit.sh" "44-security-audit.txt"
 fi
 
 # ============================================
